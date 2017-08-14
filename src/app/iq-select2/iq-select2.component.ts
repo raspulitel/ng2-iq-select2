@@ -20,8 +20,8 @@ const noop = () => {
 
 @Component({
     selector: 'iq-select2',
-    templateUrl: './iq-select2.component.html',
-    styleUrls: ['./iq-select2.component.css'],
+    templateUrl: 'iq-select2.component.html',
+    styleUrls: ['iq-select2.component.css'],
     providers: [VALUE_ACCESSOR]
 })
 export class IqSelect2Component<T> implements AfterViewInit, ControlValueAccessor {
@@ -29,8 +29,8 @@ export class IqSelect2Component<T> implements AfterViewInit, ControlValueAccesso
     MORE_RESULTS_MSG = 'Showing ' + Messages.PARTIAL_COUNT_VAR + ' of ' + Messages.TOTAL_COUNT_VAR + ' results. Refine your search to show more results.';
     NO_RESULTS_MSG = 'No results available';
 
-    @Input() dataSourceProvider: (term: string) => Observable<T[]>;
-    @Input() selectedProvider: (ids: string[]) => Observable<T[]>;
+    @Input() dataSourceProvider: (term: string, dataSourceProviderName: string) => Observable<T[]>;
+    @Input() selectedProvider: (ids: string[], dataSourceProviderName: string) => Observable<T[]>;
     @Input() iqSelect2ItemAdapter: (entity: T) => IqSelect2Item;
     @Input() referenceMode: 'id' | 'entity' = 'id';
     @Input() multiple = false;
@@ -47,6 +47,7 @@ export class IqSelect2Component<T> implements AfterViewInit, ControlValueAccesso
     };
     @Input() resultsCount;
     @Input() clientMode = false;
+    @Input() dataSourceProviderName: string; // Hack for unification of the callback function
     @Output() onSelect: EventEmitter<IqSelect2Item> = new EventEmitter<IqSelect2Item>();
     @Output() onRemove: EventEmitter<IqSelect2Item> = new EventEmitter<IqSelect2Item>();
     @ViewChild('termInput') private termInput;
@@ -112,7 +113,9 @@ export class IqSelect2Component<T> implements AfterViewInit, ControlValueAccesso
 
     private fetchData(term: string): Observable<IqSelect2Item[]> {
         return this
-            .dataSourceProvider(term)
+        // Hack for unification of the callback function
+            .dataSourceProvider(term, this.dataSourceProviderName)
+            // .dataSourceProvider(term)
             .map((items: T[]) => this.adaptItems(items));
     }
 
@@ -124,7 +127,7 @@ export class IqSelect2Component<T> implements AfterViewInit, ControlValueAccesso
     }
 
     writeValue(selectedValues: any): void {
-        if (selectedValues) {
+        if (selectedValues !== null && selectedValues !== '' && typeof selectedValues != 'undefined') {
             if (this.referenceMode === 'id') {
                 this.populateItemsFromIds(selectedValues);
             } else {
@@ -174,7 +177,8 @@ export class IqSelect2Component<T> implements AfterViewInit, ControlValueAccesso
                 }
             });
 
-            this.selectedProvider(uniqueIds).subscribe((items: T[]) => {
+            // this.selectedProvider(uniqueIds).subscribe((items: T[]) => {
+            this.selectedProvider(uniqueIds, this.dataSourceProviderName).subscribe((items: T[]) => {
                 this.selectedItems = items.map(this.iqSelect2ItemAdapter);
             });
         }
@@ -182,7 +186,8 @@ export class IqSelect2Component<T> implements AfterViewInit, ControlValueAccesso
 
     private handleSingleWithId(id: any) {
         if (id !== undefined && this.selectedProvider !== undefined) {
-            this.selectedProvider([id]).subscribe((items: T[]) => {
+            // this.selectedProvider([id]).subscribe((items: T[]) => {
+            this.selectedProvider([id], this.dataSourceProviderName).subscribe((items: T[]) => {
                 items.forEach((item) => {
                     let iqSelect2Item = this.iqSelect2ItemAdapter(item);
                     this.selectedItems = [iqSelect2Item];
